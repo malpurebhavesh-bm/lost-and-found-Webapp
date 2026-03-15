@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="welcome-section">
+  <h2>Welcome to the Lost & Found Portal</h2>
+  <p>Report or search for lost and found items in your area.</p>
+  <div class="homepage-buttons">
+    <a href="/lost" class="action-button lost"><i class="fas fa-exclamation-circle"></i> Report Lost</a>
+    <a href="/found" class="action-button found"><i class="fas fa-check-circle"></i> Report Found</a>
+    <a href="/items" class="action-button browse"><i class="fas fa-search"></i> Browse Items</a>
+  </div>
+</div>
+{% endblock %}

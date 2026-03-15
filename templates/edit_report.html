@@ -1,0 +1,26 @@
+<!-- templates/edit_item.html -->
+{% extends "layout.html" %}
+{% block content %}
+<section class="form-section">
+  <h2>Edit Reported Item</h2>
+  <form action="{{ url_for('edit_item', item_id=item.id) }}" method="POST" enctype="multipart/form-data" class="styled-form">
+    <label for="item-name">Item Name</label>
+    <input type="text" id="item-name" name="item-name" value="{{ item.name }}" required>
+
+    <label for="item-description">Description</label>
+    <textarea id="item-description" name="item-description" required>{{ item.description }}</textarea>
+
+    <label for="edit-date">Date</label>
+    <input type="date" id="edit-date" name="date" value="{{ item.date }}" required>
+
+    <label for="location">Location</label>
+    <input type="text" id="location" name="location" value="{{ item.location }}" required>
+
+    <p>Update Images (optional):</p>
+    <input type="file" name="image1">
+    <input type="file" name="image2">
+
+    <button type="submit" class="submit-button">Update Report</button>
+  </form>
+</section>
+{% endblock %}

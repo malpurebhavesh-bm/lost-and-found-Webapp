@@ -1,0 +1,176 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="main-content">
+<div class="search-bar">
+  <button id="toggleFilter" onclick="toggleFilterModal()">🔍 Search & Filter</button>
+  <span id="resultCount" style="display: none;"></span>
+</div>
+
+<div id="filterModal" class="filter-popup">
+  <div class="filter-content">
+    <label>Keyword:
+      <input type="text" id="searchKeyword" placeholder="Search by keyword...">
+    </label>
+    <label>Type:
+      <select id="filterType">
+        <option value="">All</option>
+        <option value="Lost">Lost</option>
+        <option value="Found">Found</option>
+      </select>
+    </label>
+    <label>Location:
+      <input type="text" id="filterLocation" placeholder="Location...">
+    </label>
+    <label>Date:
+      <input type="date" id="filterDate">
+    </label>
+    <button onclick="applyFilters()">Apply Filters</button>
+  </div>
+</div>
+
+
+  <div class="item-list" id="item-list">
+  {% for item in items %}
+  <div class="item-card"
+    data-type="{{ item[1] }}"
+    data-date="{{ item[4] }}"
+    data-location="{{ item[9] }}"
+    data-name="{{ item[2]|lower }}"
+    data-description="{{ item[3]|lower }}">
+
+    <div class="item-header">
+      <span class="item-badge {{ item[1] | lower }}">{{ item[1] }}</span>
+      <h3 class="item-name">{{ item[2] }}</h3>
+    </div>
+
+    <p><strong>Description:</strong> <span class="item-description">{{ item[3] }}</span></p>
+    <p><strong>Date:</strong> {{ item[4] }}</p>
+    <p><strong>Submitted at:</strong> {{ item[5] }}</p>
+    <p><strong>Email:</strong> {{ item[6] }}</p>
+
+    {% if item[7] %}
+      <p><img src="{{ url_for('static', filename='uploads/' + item[7]) }}" width="150"></p>
+    {% endif %}
+    {% if item[8] %}
+      <p><img src="{{ url_for('static', filename='uploads/' + item[8]) }}" width="150"></p>
+    {% endif %}
+
+    <p><strong>Location:</strong> {{ item[9] }}</p>
+
+    {% if item[10] and item[11] %}
+    <p>
+    <strong>Map Coordinates:</strong> {{ item[10] }}, {{ item[11] }}
+    <button type="button" onclick="viewOnMap('{{ item[10] }}', '{{ item[11] }}')" class="map-button">📍 View on Map</button>
+    </p>
+    {% endif %}
+
+    <form method="POST" action="/delete/{{ item[0] }}">
+      <button type="submit" class="delete-button">Delete</button>
+    </form>
+  </div>
+{% endfor %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+// ✅ Define globally on window object
+window.viewOnMap = function(lat, lng) {
+  lat = parseFloat(lat);
+  lng = parseFloat(lng);
+
+  const mapWindow = window.open("", "_blank", "width=800,height=600");
+  mapWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>View Location</title>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <style>
+        html, body { margin: 0; padding: 0; height: 100%; }
+        #map { height: 100%; width: 100%; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+      <script>
+        const map = L.map('map').setView([${lat}, ${lng}], 18);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        L.marker([${lat}, ${lng}]).addTo(map).bindPopup("📍 Reported Location").openPopup();
+      <\/script>
+    </body>
+    </html>
+  `);
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const filterToggle = document.getElementById('filter-toggle');
+  const filterPopup = document.getElementById('filter-popup');
+  const applyFilters = document.getElementById('apply-filters');
+  const resultsCount = document.getElementById('results-count');
+  const matchedCount = document.getElementById('matched-count');
+  const totalCount = document.getElementById('total-count');
+  const cards = document.querySelectorAll('.item-card');
+
+  totalCount.textContent = cards.length;
+
+  filterToggle.addEventListener('click', () => {
+    filterPopup.classList.toggle('show');
+  });
+
+  applyFilters.addEventListener('click', () => {
+    const keyword = document.getElementById('search-keyword').value.toLowerCase();
+    const type = document.getElementById('filter-type').value;
+    const location = document.getElementById('filter-location').value.toLowerCase();
+    const date = document.getElementById('filter-date').value;
+    let matches = 0;
+
+    cards.forEach(card => {
+      const name = card.dataset.name;
+      const desc = card.dataset.description;
+      const cardType = card.dataset.type;
+      const cardLocation = card.dataset.location;
+      const cardDate = card.dataset.date;
+
+      const match =
+        (!keyword || name.includes(keyword) || desc.includes(keyword)) &&
+        (!type || cardType === type) &&
+        (!location || cardLocation.includes(location)) &&
+        (!date || cardDate === date);
+
+      card.style.display = match ? 'block' : 'none';
+
+      // Highlight
+      const highlight = (text) => text.replace(new RegExp(`(${keyword})`, 'gi'), `<mark>$1</mark>`);
+      const nameEl = card.querySelector('.item-name');
+      const descEl = card.querySelector('.item-description');
+
+      if (match && keyword) {
+        nameEl.innerHTML = highlight(nameEl.textContent);
+        descEl.innerHTML = highlight(descEl.textContent);
+      } else {
+        nameEl.innerHTML = nameEl.textContent;
+        descEl.innerHTML = descEl.textContent;
+      }
+
+      if (match) matches++;
+    });
+
+    matchedCount.textContent = matches;
+    resultsCount.style.display = 'inline';
+    filterPopup.classList.remove('show');
+  });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,73 @@
+<!-- templates/layout.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lost & Found Portal</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+
+</head>
+<body>
+  <!-- 🔝 MAIN HEADER -->
+  <header class="main-header">
+    <div class="logo">🔍 Lost & Found Portal</div>
+    <div class="header-right">
+      <button id="mode-toggle" title="Toggle light/dark mode">🌙</button>
+    </div>
+  </header>
+
+  <!-- 📄 NAVIGATION BAR -->
+  <nav class="nav-links">
+    <a href="/">Home</a>
+    <a href="/lost">Report Lost</a>
+    <a href="/found">Report Found</a>
+    <a href="/items">Browse Items</a>
+    {% if session.get('user_id') %}
+      <a href="/profile">👤 Profile</a>
+      <a href="/logout">Logout</a>
+    {% else %}
+      <a href="/login">Login</a>
+      <a href="/register">Register</a>
+    {% endif %}
+  </nav>
+
+  <!-- 👤 PROFILE HEADER for /profile page only -->
+{% if request.path == '/profile' %}
+<div class="profile-bar">
+  <div class="profile-box">
+    <span class="profile-title">👤 Profile</span>
+    <button id="profile-toggle" class="profile-icon">☰</button>
+  </div>
+  <div class="profile-dropdown" id="profile-dropdown">
+    <a href="/edit-profile">Edit Profile</a>
+    <a href="/logout">Logout</a>
+  </div>
+</div>
+{% endif %}
+
+
+  <!-- 💬 FLASH MESSAGES -->
+  <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="alert {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>
+

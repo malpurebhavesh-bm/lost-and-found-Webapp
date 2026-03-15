@@ -1,0 +1,99 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<section class="form-section">
+  <h2>Report a Found Item</h2>
+  <form action="/submit-found" method="POST" enctype="multipart/form-data" class="styled-form">
+
+    <label for="item-name">Item Name</label>
+    <input type="text" id="item-name" name="item-name" required>
+
+    <label for="item-description">Description</label>
+    <textarea id="item-description" name="item-description" required></textarea>
+
+    <label for="lost-date">Date</label>
+    <input type="date" id="found-date" name="found-date" required>
+
+    <label for="email">Your Email</label>
+    <input type="email" id="email" name="email" required>
+
+    <label for="location">Location (Text Description)</label>
+    <input type="text" id="location" name="location" placeholder="Enter area or place name" required>
+
+    <!-- 🌍 Map -->
+    <label>Select Exact Location on Map</label>
+    <div id="map" style="height: 350px; border-radius: 10px; margin-bottom: 15px;"></div>
+
+    <input type="hidden" name="latitude" id="latitude">
+    <input type="hidden" name="longitude" id="longitude">
+
+    <label for="image1">Upload Image 1</label>
+    <input type="file" id="image1" name="image1" accept="image/*">
+
+    <label for="image2">Upload Image 2</label>
+    <input type="file" id="image2" name="image2" accept="image/*">
+
+    <button type="submit" class="submit-button found">Submit Found Report</button>
+  </form>
+</section>
+
+<!-- ✅ Leaflet & Geocoder Scripts -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+<script>
+  // 🌐 Initialize map
+  const map = L.map('map').setView([18.4578, 73.8509], 17); // Default to VIT Pune
+
+  // Add tiles
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '🗺️ OpenStreetMap contributors',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // 📍 Marker logic
+  let marker;
+  map.on('click', function(e) {
+    const { lat, lng } = e.latlng;
+    if (marker) {
+      marker.setLatLng([lat, lng]);
+    } else {
+      marker = L.marker([lat, lng]).addTo(map);
+    }
+    document.getElementById('latitude').value = lat;
+    document.getElementById('longitude').value = lng;
+  });
+
+  // 🔍 Search bar
+  L.Control.geocoder({
+    defaultMarkGeocode: false
+  })
+    .on('markgeocode', function(e) {
+      const bbox = e.geocode.bbox;
+      const center = e.geocode.center;
+      map.fitBounds(bbox);
+      if (marker) {
+        marker.setLatLng(center);
+      } else {
+        marker = L.marker(center).addTo(map);
+      }
+      document.getElementById('latitude').value = center.lat;
+      document.getElementById('longitude').value = center.lng;
+    })
+    .addTo(map);
+</script>
+
+<style>
+  .custom-logo {
+    background: white;
+    padding: 5px 10px;
+    border-radius: 6px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+  }
+</style>
+
+{% endblock %}
+

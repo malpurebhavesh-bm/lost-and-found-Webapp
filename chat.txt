@@ -1,0 +1,74 @@
+adding an AI Chatbot Assistant for reporting is absolutely doable and is one of the most highly valued skills in the industry right now! It involves using a Large Language Model (LLM) to extract structured data (like item name, description, date, and location) from unstructured text (the user's natural language sentence).
+
+Since this is for a resume project and you want to keep costs low (or free), we should use the google-genai library with the Gemini API. Gemini offers a very generous free tier that is perfect for this.
+
+Here is what we need to do to add this feature:
+
+1. Requirements & Setup
+Install the library: We need to add google-genai to your environment and 
+
+requirements.txt
+.
+Get an API Key: You will need to get a free Google Gemini API key from Google AI Studio.
+2. Changes to 
+
+app.py
+We will need to add a new function that takes a user's sentence and asks Gemini to extract the information as a structured JSON object.
+
+New Function Additions:
+
+python
+from google import genai
+from google.genai import types
+import json
+import os
+# You would set this in your terminal before running: export GEMINI_API_KEY="your_key"
+client = genai.Client()
+def extract_item_details_from_text(user_text):
+    prompt = f"""
+    You are an assistant for a campus Lost and Found portal. Extract the following details from the user's report:
+    - Item Name (e.g., 'MacBook Pro', 'Keys', 'Wallet')
+    - Description (color, brand, any identifying features)
+    - Location (where it was lost or found)
+    - Date (if mentioned, otherwise estimate based on 'yesterday', etc., or leave blank)
+    
+    User Report: "{user_text}"
+    
+    Return the result ONLY as a valid JSON object with keys: "name", "description", "location", "date".
+    """
+    
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+        ),
+    )
+    
+    # Parse the JSON response
+    return json.loads(response.text)
+New Route Addition: We'll create a new backend route called /ai-parse-report that the frontend can talk to.
+
+python
+@app.route('/ai-parse-report', methods=['POST'])
+def ai_parse_report():
+    data = request.get_json()
+    user_text = data.get('text')
+    
+    try:
+        extracted_data = extract_item_details_from_text(user_text)
+        return {"success": True, "data": extracted_data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+3. Changes to Frontend (lost.html & found.html)
+We will add a "Smart Report" text box at the top of the forms.
+
+UI Addition: We'll add a textarea where the user can type: "I lost my black wallet near the library yesterday."
+JavaScript Addition: We will add a button that says "Auto-Fill Form". When clicked, JavaScript will send that text to our new /ai-parse-report route. When the backend replies with the extracted data, the JavaScript will automatically fill in the Name, Description, Location, and Date fields on your existing form.
+How to Proceed:
+First, you need an API key. Go to Google AI Studio and generate a free API key.
+Set the key as an environment variable. In your Mac terminal (where you run your app), run: export GEMINI_API_KEY="your_actual_api_key_here"
+Let me know when you've got the key! Once you have it, I will write the complete code changes for 
+
+app.py
+, lost.html, and found.html to integrate this impressive feature.

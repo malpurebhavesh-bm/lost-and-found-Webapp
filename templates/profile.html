@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="main-content">
+  <div class="profile-info">
+    <h2>Welcome, <strong>{{ name }}</strong></h2>
+    <p><strong>Email:</strong> {{ email }}</p>
+    <h3>Your Reported Items:</h3>
+
+    {% if reports %}
+      <div class="item-list">
+        {% for item in reports %}
+          <div class="item-card">
+            <h4>{{ item[1] }} Item</h4>
+            <p><strong>Name:</strong> {{ item[2] }}</p>
+            <p><strong>Description:</strong> {{ item[3] }}</p>
+            <p><strong>Date:</strong> {{ item[4] }}</p>
+            <p><strong>Location:</strong> {{ item[9] }}</p>
+
+            <div class="item-actions">
+  <a href="/edit-report/{{ item[0] }}" class="edit-button">Edit Report</a>
+  <form action="/delete/{{ item[0] }}" method="POST" style="display:inline;">
+    <button type="submit" class="delete-button">Delete</button>
+  </form>
+</div>
+
+          </div>
+ 
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>You haven't reported any items yet.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

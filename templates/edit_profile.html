@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="form-section">
+  <h2>Edit Profile</h2>
+  <form method="POST" class="styled-form">
+    <input type="text" name="name" value="{{ name }}" placeholder="Name" required>
+    <input type="email" name="email" value="{{ email }}" placeholder="Email" required>
+    <input type="password" name="password" placeholder="New Password (optional)">
+    <button type="submit" class="submit-button">Save Changes</button>
+  </form>
+</section>
+{% endblock %}
