@@ -8,8 +8,13 @@ import smtplib
 from email.mime.text import MIMEText
 from sentence_transformers import SentenceTransformer, util
 import torch
-model = SentenceTransformer('all-MiniLM-L6-v2')
+import torch
+from google import genai
+from google.genai import types
+import json
 
+model = SentenceTransformer('all-MiniLM-L6-v2')
+gemini_client = genai.Client()
 app = Flask(__name__)
 app.secret_key = 'secret-key'
 
@@ -93,6 +98,84 @@ def send_email(to_email, subject, body):
         print(f"✅ Email sent to {to_email}")
     except Exception as e:
         print(f"❌ Failed to send email: {e}")
+
+def extract_item_details_from_text(user_text):
+    prompt = f"""
+    You are an assistant for a campus Lost and Found portal. Extract the following details from the user's report:
+    - Item Name (e.g., 'MacBook Pro', 'Keys', 'Wallet')
+    - Description (color, brand, any identifying features)
+    - Location (Text based location of where it was lost or found)
+    - Latitude (Floating point number, approximate coordinate based on the location. Default to VIT Pune area around 18.4578 if unsure)
+    - Longitude (Floating point number, approximate coordinate based on the location. Default to VIT Pune area around 73.8509 if unsure)
+    - Date (Extract the date if mentioned like 'March 13' or 'yesterday'. You MUST format it strictly as YYYY-MM-DD using the current year. If not found, leave blank.)
+    
+    Current Year Context: {datetime.now().year}
+    User Report: "{user_text}"
+    
+    Return the result ONLY as a valid JSON object with keys: "name", "description", "location", "latitude", "longitude", "date".
+    Make sure date is empty string if not found.
+    """
+    
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        print("Error with Gemini:", e)
+        return {"error": str(e)}
+
+def is_spam_report(description):
+    """Uses Gemini to determine if a report is likely fake, a joke, or spam."""
+    prompt = f"""
+    You are a content moderator for a university campus Lost and Found portal.
+    Analyze the following item description and determine if it is a genuine lost/found report or if it is spam, a joke, or inappropriate.
+    
+    Examples of genuine: "Black leather wallet with my student ID", "Blue hydroflask", "MacBook pro silver"
+    Examples of spam/fake: "I lost my mind", "Found a unicorn", "jfkdsla;fjdk", "Selling cheap shoes click here"
+    
+    Description: "{description}"
+    
+    Respond strictly with a JSON object containing a single key "is_spam" mapped to a boolean (true or false).
+    """
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
+        )
+        result = json.loads(response.text)
+        return result.get('is_spam', False)
+    except Exception as e:
+        print("Spam check failed, allowing report:", e)
+        return False
+
+@app.route('/ai-parse-report', methods=['POST'])
+def ai_parse_report():
+    data = request.get_json()
+    user_text = data.get('text', '')
+    
+    if not user_text:
+         return {"success": False, "error": "No text provided"}
+         
+    # 🛑 First, check if the input is spam
+    if is_spam_report(user_text):
+        return {"success": False, "error": "Flagged as spam or inappropriate. Please provide a genuine description."}
+         
+    try:
+        extracted_data = extract_item_details_from_text(user_text)
+        if "error" in extracted_data:
+             return {"success": False, "error": extracted_data["error"]}
+        return {"success": True, "data": extracted_data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 @app.route('/')
 def home():
@@ -220,6 +303,11 @@ def submit_lost():
     latitude = request.form.get('latitude')
     longitude = request.form.get('longitude')
 
+    # 🛑 AI Spam Filter
+    if is_spam_report(description):
+        flash("Your report was flagged as spam or inappropriate. Please provide a genuine description.", "danger")
+        return redirect(url_for('lost'))
+
     # Handle images
     image1 = request.files.get('image1')
     image2 = request.files.get('image2')
@@ -304,6 +392,11 @@ def submit_found():
     submitted_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     latitude = request.form.get('latitude')
     longitude = request.form.get('longitude')
+
+    # 🛑 AI Spam Filter
+    if is_spam_report(description):
+        flash("Your report was flagged as spam or inappropriate. Please provide a genuine description.", "danger")
+        return redirect(url_for('found'))
 
     # 📦 Save uploaded images
     image1 = request.files.get('image1')
@@ -496,4 +589,4 @@ def reset_password(token):
     return render_template('reset_password.html')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)
