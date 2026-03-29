@@ -3,3 +3,9 @@ sentence-transformers
 torch
 werkzeug
 google-genai
+python-dotenv
+gunicorn
+Flask-Limiter
+Flask-SQLAlchemy
+psycopg2-binary
+cloudinary
