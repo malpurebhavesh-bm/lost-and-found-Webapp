@@ -21,7 +21,7 @@ import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 
-load_dotenv()
+load_dotenv(override=True)
 
 # We will lazy-load the heavy local PyTorch model to prevent it from blocking server startup
 similarity_model = None
@@ -93,20 +93,24 @@ with app.app_context():
     db.create_all()
     print("✅ Database initialized")
 
-def find_similar_reports(new_desc, opposite_type):
+def find_similar_reports(new_name, new_desc, opposite_type):
     items_objs = Item.query.filter_by(type=opposite_type).all()
     
     # Load the model only when a report is being matched
     model = get_similarity_model()
 
-    new_emb = model.encode(new_desc, convert_to_tensor=True)
+    # Combine name and description to give the AI more precise context
+    combined_new = f"Item: {new_name}. Description: {new_desc}"
+    new_emb = model.encode(combined_new, convert_to_tensor=True)
     matched = []
 
     for item in items_objs:
-        item_emb = model.encode(item.description, convert_to_tensor=True)
+        combined_item = f"Item: {item.name}. Description: {item.description}"
+        item_emb = model.encode(combined_item, convert_to_tensor=True)
         score = util.pytorch_cos_sim(new_emb, item_emb).item()
-        if score > 0.65:
-            matched.append({'id': item.id, 'name': item.name, 'description': item.description, 'email': item.email})
+        print(f"📊 Similarity score with '{item.name}': {score:.4f}")
+        if score > 0.85:
+            matched.append({'id': item.id, 'name': item.name, 'description': item.description, 'email': item.email, 'score': score})
     return matched
 
 def send_email(to_email, subject, body):
@@ -385,16 +389,23 @@ def submit_lost():
     db.session.commit()
 
     print(f"🔎 Submitted description: {description}")
-    matches = find_similar_reports(description, 'Found')
+    matches = find_similar_reports(name, description, 'Found')
     print(f"📬 Found {len(matches)} match(es)")
     for match in matches:
         if match['email'] != email:
+            if match['score'] > 0.85:
+                subject = "🚨 GREAT MATCH! We likely found your item!"
+                prefix = "An EXACT or highly probable match"
+            else:
+                subject = "We may have found your item!"
+                prefix = "A possible match"
+                
             send_email(
                 match['email'],
-                "We may have found your item!",
-                f"A LOST item was reported that matches what you FOUND:\n\n"
+                subject,
+                f"{prefix} was reported for your FOUND item:\n\n"
                 f"Lost Item: {name}\nDescription: {description}\n\n"
-                f"Possible match: {match['name']} - {match['description']}\n"
+                f"Match: {match['name']} - {match['description']} (Confidence: {match['score']:.2f})\n"
                 f"🧾 Contact: {email}"
             )
 
@@ -456,17 +467,24 @@ def submit_found():
     db.session.commit()
 
     print(f"🔎 Submitted description: {description}")
-    matches = find_similar_reports(description, 'Lost')
+    matches = find_similar_reports(name, description, 'Lost')
     print(f"📬 Found {len(matches)} match(es)")
 
     for match in matches:
         if match['email'] != email:
+            if match['score'] > 0.85:
+                subject = "🚨 GREAT MATCH! Your exact item may have been found!"
+                prefix = "An EXACT or highly probable match"
+            else:
+                subject = "Your lost item may have been found!"
+                prefix = "A possible match"
+                
             send_email(
                 match['email'],
-                "Your lost item may have been found!",
-                f"A FOUND item was reported that matches your LOST item:\n\n"
+                subject,
+                f"{prefix} was reported for your LOST item:\n\n"
                 f"Found Item: {name}\nDescription: {description}\n\n"
-                f"Possible match: {match['name']} - {match['description']}\n"
+                f"Match: {match['name']} - {match['description']} (Confidence: {match['score']:.2f})\n"
                 f"🧾 Contact: {email}"
             )
 

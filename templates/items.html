@@ -29,14 +29,24 @@
 </div>
 
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<div id="global-map-container">
+  <div id="global-map"></div>
+</div>
+
   <div class="item-list" id="item-list">
   {% for item in items %}
   <div class="item-card"
+    id="item-card-{{ item[0] }}"
+    data-id="{{ item[0] }}"
     data-type="{{ item[1] }}"
     data-date="{{ item[4] }}"
     data-location="{{ item[9] }}"
     data-name="{{ item[2]|lower }}"
-    data-description="{{ item[3]|lower }}">
+    data-description="{{ item[3]|lower }}"
+    data-lat="{{ item[10] }}"
+    data-lng="{{ item[11] }}">
 
     <div class="item-header">
       <span class="item-badge {{ item[1] | lower }}">{{ item[1] }}</span>
@@ -59,8 +69,8 @@
 
     {% if item[10] and item[11] %}
     <p>
-    <strong>Map Coordinates:</strong> {{ item[10] }}, {{ item[11] }}
-    <button type="button" onclick="viewOnMap('{{ item[10] }}', '{{ item[11] }}')" class="map-button">📍 View on Map</button>
+    <strong>Map Coordinates:</strong> <span class="coord-lat">{{ item[10] }}</span>, <span class="coord-lng">{{ item[11] }}</span>
+    <button type="button" onclick="panToLocation('{{ item[10] }}', '{{ item[11] }}', '{{ item[0] }}')" class="map-button">📍 View on Map</button>
     </p>
     {% endif %}
 
@@ -75,40 +85,59 @@
 
 {% block scripts %}
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ✅ Define globally on window object
-window.viewOnMap = function(lat, lng) {
+let globalMap = null;
+let markers = {}; 
+
+document.addEventListener('DOMContentLoaded', () => {
+    globalMap = L.map('global-map').setView([18.4578, 73.8509], 14); 
+    
+    // Add Tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(globalMap);
+
+    // Drop Pins for all items
+    const cards = document.querySelectorAll('.item-card');
+    cards.forEach(card => {
+        const lat = parseFloat(card.dataset.lat);
+        const lng = parseFloat(card.dataset.lng);
+        const id = card.dataset.id;
+        const type = card.dataset.type;
+        const name = card.dataset.name;
+        
+        if (!isNaN(lat) && !isNaN(lng)) {
+            const cleanName = name.charAt(0).toUpperCase() + name.slice(1);
+            const marker = L.marker([lat, lng]).addTo(globalMap);
+            
+            const popupHTML = `
+              <div class="map-popup-header ${type.toLowerCase()}">${type}</div>
+              <div><strong>Item:</strong> ${cleanName}</div>
+            `;
+            marker.bindPopup(popupHTML);
+            markers[id] = marker;
+        }
+    });
+});
+
+window.panToLocation = function(lat, lng, id) {
   lat = parseFloat(lat);
   lng = parseFloat(lng);
-
-  const mapWindow = window.open("", "_blank", "width=800,height=600");
-  mapWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>View Location</title>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-      <style>
-        html, body { margin: 0; padding: 0; height: 100%; }
-        #map { height: 100%; width: 100%; }
-      </style>
-    </head>
-    <body>
-      <div id="map"></div>
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
-      <script>
-        const map = L.map('map').setView([${lat}, ${lng}], 18);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-        L.marker([${lat}, ${lng}]).addTo(map).bindPopup("📍 Reported Location").openPopup();
-      <\/script>
-    </body>
-    </html>
-  `);
+  
+  if (globalMap) {
+    document.getElementById('global-map-container').scrollIntoView({ behavior: 'smooth' });
+    
+    globalMap.flyTo([lat, lng], 18, {
+      animate: true,
+      duration: 1.5
+    });
+    
+    setTimeout(() => {
+        if (markers[id]) markers[id].openPopup();
+    }, 1500);
+  }
 }
 </script>
 
